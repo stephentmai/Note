@@ -1,4 +1,4 @@
-#Spring MVC的请求映射注解
+# Spring MVC的请求映射注解 #
 |注解|描述|
 |---|:---:|
 |@RequestMapping|通用的请求处理|
@@ -8,14 +8,14 @@
 |@DeleteMapping|处理HTTP DELETE请求|
 |@PatchMapping|处理HTTP PATCH请求|
 
-#注解解释
+#注解解释#
 ##@SpringBootApplication是一个组合注解，它组合了3个其他的注解。
 
 - @SpringBootConfiguration：将该类声明为配置类。这个注解实际上是@Configuration注解的特殊形式。
 - @EnableAutoConfiguration：启用Spring Boot的自动配置。
 - @ComponentScan：启用组件扫描。这样我们能够通过像@Component、@Controller、@Service这样的注解声明其他类，Spring会自动发现它们并将它们注册为Spring应用上下文中的组件。
  
-##@Valid 注解类型
+## @Valid 注解类型 ##
 **@Valid**注解可以实现数据的验证，你可以定义实体，在实体的属性上添加校验规则，而在API接收数据时添加@valid关键字，这时你的实体将会开启一个校验的功能。
 **@Null**
 限制只能为null
@@ -51,3 +51,5 @@
 验证注解的元素值不为空（不为null、去除首位空格后长度为0），不同于@NotEmpty，@NotBlank只应用于字符串且在比较时会去除字符串的空格
 **@Email**
 验证注解的元素值是Email，也可以通过正则表达式和flag指定自定义的email格式
+
+## @Autowired ##
