@@ -63,32 +63,22 @@
 借用网上的图
 ![img](https://img2018.cnblogs.com/blog/1301757/201904/1301757-20190430122157827-1697022748.png)
 
-##三、git代理设置（加速clone等，非必须） ##
-
-1.配置ss代理：
-
+## 三、git代理设置（加速clone等，非必须） ##
+### 1.配置ss代理： ###
 git config --global http.proxy socks5://127.0.0.1:6789
 git config --global https.proxy socks5://127.0.0.1:6789
 git config --global http.sslVerify false
-2.取消代理：
-
+### 2.取消代理： ###
 git config --global --unset http.proxy 
 git config --global --unset https.proxy
-3.查看代理
-
+### 3.查看代理 ###
 git config --global --get http.proxy
 git config --global --get https.proxy
- 
-
-四、其他设置
-
-1.设置全局用户名
-
+## 四、其他设置 ##
+### 1.设置全局用户名 ###
 git config --global user.name myname
-2.设置全局邮箱
-
+### 2.设置全局邮箱 ###
 git config --global user.email myemail@gmail.com
-3.修复 git status 把中文名显示为 \xxx\xxx\xxx 的问题
-
+### 3.修复 git status 把中文名显示为 \xxx\xxx\xxx 的问题 ###
 git config --global core.quotepath false
  
