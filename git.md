@@ -61,7 +61,7 @@
 **git fork**：复制远程库
 　　**tip**：一般是外面团队的开发人员fork本团队项目，然后进行开发，之后外面团队发起pull request，然后本团队进行审核，如无问题本团队进行merge（合并）到团队自己的远程库，整个流程就是本团队跟外面团队的协同开发流程，Linux的团队开发成员即为这种工作方式。
 借用网上的图
-![](/img/mk-2022-09-01-23-45-51.png)
+![](https://user-images.githubusercontent.com/88578919/188180090-135ef37e-9ad1-4eab-ae04-d6dfb0a4c659.png)
 ## 三、git代理设置（加速clone等，非必须） ##
 ### 1.配置ss代理： ###
 git config --global http.proxy socks5://127.0.0.1:6789
