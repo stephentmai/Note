@@ -226,10 +226,5 @@ public interface VisaCheckeeRepository extends CrudRepository<VisaCheckee, Long>
 上面的代码中，就算不使用@Repository
 当然我们还是建议使用@Repository
 如果你还是实现类的话，也记得把你的实现类用@Repository
-<<<<<<< HEAD
 ![](/img/mk-2022-09-01-23-58-55.png)
 如果，我们来看看上面的图，就能比较直观的了解@Repository
-=======
-![](img/mk-2022-09-01-23-58-55.png)
-如果，我们来看看上面的图，就能比较直观的了解@Repository
->>>>>>> 50907a99e02b3ef87e14c76b279bc14c2052343a
