@@ -228,3 +228,70 @@ public interface VisaCheckeeRepository extends CrudRepository<VisaCheckee, Long>
 如果你还是实现类的话，也记得把你的实现类用@Repository
 ![](https://user-images.githubusercontent.com/88578919/188180181-7deccad8-4958-4f95-93a2-9d29e55573a2.png)
 如果，我们来看看上面的图，就能比较直观的了解@Repository
+## @SessionAttributes ##
+@SessionAttributes用于在会话中存储Model的属性，一般作用在类的级别。像下面的代码，model的属性user会被存储到session中，因为@ModelAttribute与@SessionAttributes有相同的注解。
+```java
+@Controller
+@SessionAttributes("user")
+public class ModelController {
+    
+    @ModelAttribute("user")
+    public User initUser(){
+        User user =new User();
+        user.setName("default");
+        return user;
+    }
+}
+```
+@SessionAttribute是用于获取已经存储的session数据，并且作用在方法的层面上。
+```java
+@RequestMapping("/session")
+public String session(
+    @SessionAttribute("user") User user
+){
+    //do something
+    return "index";
+}
+```
+### 实例 ###
+1.准备@SessionAttributes的文件，用于存储session
+```java
+@Controller
+@RequestMapping("/model")
+@SessionAttributes("user")
+public class ModelController {
+    
+    @ModelAttribute("user")
+    public User initUser(){
+        User user = new User();
+        user.setName("default");
+        return user;
+    }
+    @RequestingMapping("/parmeter")
+    public String parameter(
+        @ModelAttribute("user") User user
+    ){
+        return "index";
+    }
+}
+```
+2.准备@SessionAttribute的文件，用于检索session，以验证注解是否正确。
+```java
+@Controller
+public class SessionController {
+    @RequestMapping("/session")
+    public String session (
+@SessionAttribute("user") User user,HttpServletRequest request
+    ){
+        return "index";
+    }
+}
+```
+3.进行测试
+不经过@SessionAttributes会直接报错
+![](img/mk-2022-09-03-22-29-08.png)
+先经过@SessionAttributes
+首先访问/model/parameter的url
+![](img/mk-2022-09-03-22-32-01.png)
+然后访问/session的url。这个地址，我们没有传递任何参数，可以看到从session中获取user对象成功了
+![](img/mk-2022-09-03-22-54-37.png)
