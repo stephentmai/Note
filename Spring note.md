@@ -289,12 +289,12 @@ public class SessionController {
 ```
 3.进行测试
 不经过@SessionAttributes会直接报错
-![](img/mk-2022-09-03-22-29-08.png)
+![](https://user-images.githubusercontent.com/88578919/188309273-6ee60b7b-df1c-4928-b2a0-257d11de5690.png)
 先经过@SessionAttributes
 首先访问/model/parameter的url
-![](img/mk-2022-09-03-22-32-01.png)
+![](https://user-images.githubusercontent.com/88578919/188309283-8b40a9f4-1e23-4ba0-978e-25567734211e.png)
 然后访问/session的url。这个地址，我们没有传递任何参数，可以看到从session中获取user对象成功了
-![](img/mk-2022-09-03-22-54-37.png)
+![](https://user-images.githubusercontent.com/88578919/188309290-5e33dd1d-2d0a-45d6-8f76-8c3ff354ca1b.png)
 
 ## @ModelAttribute ##
 ### 方法使用@ModelAttribute标准 ###
