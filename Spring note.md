@@ -295,3 +295,230 @@ public class SessionController {
 ![](img/mk-2022-09-03-22-32-01.png)
 然后访问/session的url。这个地址，我们没有传递任何参数，可以看到从session中获取user对象成功了
 ![](img/mk-2022-09-03-22-54-37.png)
+
+## @ModelAttribute ##
+### 方法使用@ModelAttribute标准 ###
+**解说一**
+@ModelAttribute标注可被应用在方法或方法参数上。
+标准在方法上的@ModelAttribute说明方法是用于添加一个或多个属性到model上。这样的方法能接受与@RequestMapping标注相同的参数类型，只不过不能直接被映射到具体的请求上。
+在同一个控制器上，标注了@ModelAttribute的方法实际上会在@RequestMapping方法之前被调用。
+以下是示例：
+```java
+//Add one attribute
+//The return value of the method is added to the model under the name "account"
+//You can customize the name via @ModelAttibute("myAccount")
+
+@ModelAttribute
+pubulic Account addAccount(@RequestParam String number) {
+    return accountManager.findAccount(number);
+}
+
+//Add multiple attributes
+
+@ModelAttributes
+public void populateModel(@RequestParam String number, Model model) {
+    model.addAttribute(accountManager.findAccount(number));
+    //add more ...
+}
+```
+@ModelAttribute方法通常被用来填充一些公共需要的属性或数据，比如一个下拉列表所预设的几种状态，或者宠物的几种类型，或者去取得一个HTML表单渲染所需要的命令对象，比如Account等。
+
+@ModelAttribute标准方法有两种风格：
+- 在第一种写法中，方法通过返回值的方式默认地将添加一个属性；
+- 在第二种写法中，方法接收一个Model对象，然后可以向其中添加任意数量的属性。
+
+可以在根据需要，在两种风格中选择合适的一种。
+一个控制器可以拥有多个@ModelAttribute方法。同个控制器内所有这些方法，都会在@RequestMapping方法之前被调用。
+@ModelAttribute方法也可以定义在@ControllerAdvice标准的类中，并且这些@ModelAttribute可以同时对许多控制器生效。
+
+    属性名没有被显示指定的时候又当如何呢？在这种情况下，框架将根据属性的类型给予一个默认名称。举个例子，若方法返回一个Account类型的对象，则默认的属性名为“account”。可以通过设置@ModelAttribute标注的值来改变默认值。当向Model中直接添加属性时，请使用合适的重载方法addAttribute(..)-即带或不带属性名的方法。
+@ModelAttribute标注也可以被用在@RequestMapping方法上。这种情况下，@RequestMapping方法的返回值将会被解释为model的一个属性，而非一个视图名，此时视图名将以视图命名约定的方式来确定。
+
+**解说二**
+首先说明一下，被@ModelAttribute注解的方法会在controller每个方法执行之前都执行，因此对于一个controller中包含多个URL的时候，要谨慎使用。
+
+1) 使用@ModelAttribute注解无返回值的方法
+```java
+@Controller
+@RequestMapping(value = "/modelattribute")
+public class ModelAttributeController {
+    
+    @ModelAttribute
+    public void myModel(@RequestParam(required = false) String abd, Model model) {
+        model.addAttribute("attributeName",abc);
+    }
+
+    @RequestMapping(value = "/method")
+    public String method() {
+        return "method";
+    }
+}
+```
+这个例子，在请求/modelattribute/method?abc=aaa后，会执行myModel方法，然后执行method方法，参数abc的值被放到Model中后，接着被带到method方法中。
+
+当返回视图/modelattribute/method时，Model会被带到页面上，当然你在使用@RequestParam的时候可以使用required来指定参数是否是必须的。
+
+如果把myModel和method合二为一，代码如下，这也是我们常用的方法：
+```java
+@RequestMapping(value = "/method")
+public String method(@RequestParam(requird = false) String abc, Model model) {
+    model.addAttribute("attributeName",abc);
+    return "method";
+}
+```
+
+2) 使用@ModelAttribute注解带有返回值的方法
+```java
+@ModelAttribute
+public String myModel(@RequestParam(required = false) String abc) {
+    return abc;
+}
+
+@ModelAttribute
+public Student myModel(@RequestParam(required = false) String abc) {
+    Student student = new student(abc);
+    return student;
+}
+
+@ModelAttribute
+public int myModel(@RequestParam(required = false) int number) {
+    return number
+}
+```
+对于这种情况，返回值对象会被默认放到隐含的Model中，在Model中key为返回值首字母小写，value为返回的值。
+上面3种情况等同于：
+```java
+model.addAttribute("string",abc);
+model.addAttribute("int",number);
+model.addAttribute("student",student);
+```
+在JSP页面使用${int}表达式时会报错：javax.el.ElException:Failed to parse the expression [${int}]。
+解决方法：
+在tomcat的配置文件conf/catalina.properties添加配置org.apache.el.parser.SKIP_IDENTIFIER_CHECK=true
+如果只能这样，未免太局限了，我们很难接受key为string、int、float等等这样的。
+想自定义其实很简单，只需要给@ModelAttribute添加value属性即可，如下：
+```java
+@ModelAttribute(value = "num")
+public int myModel(@RequestParam(requied = false) int number) {
+    return number;
+}
+```
+这样就相当于model.addAttribute("num",number);。
+
+### 方法参数使用@ModelAttribute标注 ###
+**解说一**
+标注在方法参数上的@ModelAttribute说明了该方法参数的值将由model中取得。如果model中找不到，那么该参数会先被实例化，然后被添加model中。在model中存在以后，请求中所有名称匹配的参数都会填充到该参数中。
+这在Spring MVC中被称为数据绑定，一个非常有用的特性，我们不用每次都手动从表格数据中转换这些字段数据。
+```java
+@RequestMapping(path = "/owners/{ownerId}/pets/{petId}/edit",method = RequestMethod.POST)
+public String processSubmit(@ModelAttribute Pet pet) { }
+```
+以上面的代码为例，这个Pet类型的实力可能来自哪里呢？有几种可能：
+
+- 它可能因为@SessionAttribute标注的使用已经存在于model中
+- 它可能因为在同个控制器使用了@ModelAttribute方法已经存在于model中————正如上一小节所叙述的
+- 它可能是由URI模板变量和类型转换中取得的（下面会详细讲解）
+- 它可能是调用了自身的默认构造器被实例化出来的
+
+@ModelAttribute方法常用于从数据库中取一个属性值，该值可能通过@SessionAttributes标注在请求中间传递。在一些情况下，使用URI模板变量和类型转换的方式来取得一个属性是更方便的方式。这里有个例子：
+```java
+@RequestMapping(path = "/accounts/{account}", method = RequestMethod.PUT)
+public String save(@ModelAttribute("account") Account account) {
+
+}
+```
+
+这个例子中，model属性的名称("account")与URI模板变量的名称相匹配。如果配置了一个可以将String类型的账户值转换成Account类型实例的转换器Converter <String,Account>，那么上面这段代码就可以工作的很好，而不需要再额外写一个@ModelAttribute方法。
+
+下一步就是数据的绑定。WebDataBinder类能将请求参数————包括字符串的查询参数和表单字段等————通过名字匹配到model的属性上。成功匹配的字段在需要的时候会进行一次类型转换（从String类型到目标字段的类型），然后被填充到model对应的属性中。
+
+进行了数据绑定后，则可能会出现一些错误，比如没有提供必须的字段、类型转换过程错误等。若想检查这些错误，可以在标注了@ModelAttribute的参数紧跟着声明一个BindingResult参数：
+```java
+@RequestMapping(path = "/owner/{ownerId}/pets/{petId}/edit", method = RequestMethod.POST)
+public String processSubmit(@ModelAttribute("pet") Pet pet, BindingResult result) {
+    if (result.hasErrors()) {
+        return "petForm";
+    }
+
+    // ...
+
+}
+```
+拿到BindingResult参数后，可以检查是否有错误，可以通过Spring的<errors>表单标签来在同一个表单上显示错误信息。
+
+BindingResult被用于记录数据过程的错误，因此除了数据绑定外，还可以把该对象传给自己定制的验证器来调用验证。这使得数据绑定过程和验证过程出现的错误可以被搜集到一起，然后一并返回给用户：
+```java
+@RequestMapping(path = "/owners/{ownerId}/pets/{petId}/edit", method = RequestMethod.POST)
+public String processSubmit(@ModelAttribute("pet") Pet pet, BindingResult result) {
+    
+    new PetValidator().validate(pet,result);
+    if (result.hasErrors()) {
+        return "petForm";
+    }
+
+    //...
+
+}
+```
+又或者可以通过添加一个JSR-303规范的@Valid标注，这样验证器会自动被调用。
+```java
+@RequestMapping(path = "/owners/{ownerId}/pet/{petId}/edit", method = RequestMethod.POST)
+public String processSubmit(@Valid @ModelAttribute("pet") Pet pet, BindingResult result) {
+    
+    if (result.hasErrors()) {
+        return "petForm";
+    }
+
+    //...
+
+}
+```
+**解说二**
+
+```java
+@Controller
+@RequestMapping(value = "/modelattribute")
+public class ModelAttributeParamController {
+
+    @ModelAttribute(value = "attributeName")
+    public String myModel(@RequestParam(required = false) String abc) {
+        return abc;
+    }
+
+    @ModelAttribute
+    public void myModel3(Model model) {
+        model.addAttribute("name","zong");
+        model.addAttribute("age",20);
+    }
+
+    @RequestMapping(value = "/param")
+    public String param(
+        @ModelAttribute("attributeName") String str,
+        @ModelAttribute("name") String str2,
+        @ModelAttribute("age") int str3) {
+        return "param";
+        }
+}
+```
+
+代码中可以看出，使用@ModelAttribute注解的参数，意思是从前面的Model中提取对应名称的属性。
+这里提及一下@SessionAttributes的使用：
+- 如果在类上面使用了@SessionAttributes("attributeName")注解，而本类中恰巧存在attributeName，则会将attributeName放入到session作用域。
+- 如果在类上面使用了@SessionAttributes("attributeName")注解，SpringMVC会在执行方法之前，自动从session中读取key为attributeName的值，并注入到Model中。所以我们在方法的参数中使用ModelAttribute("attributeName")就会正常的从Model读取这个值，也就相当于获取了session中的值。
+- 使用了@SessionAttributes之后，Spring无法知道什么时候要清掉@SessionAttributes存进去的数据，如果要明确告知，也就是在方法中传入sessionstatus对象参数，并调用status.setCompete就可以了。
+
+应用在方法上，并且方法上也使用了@RequestMapping
+```java
+@Controller
+@RequestMapping(value = " /modelattribute")
+public class ModelAttributeController {
+
+    @RequestMapping(value = "/test")
+    @ModelAttribute("name")
+    public String test(@RequestParam(required =false) String name) {
+        return name;
+    }
+}
+```
+这种情况下，返回值String（或者其他对象）就不再是视图了，而是放入到Model中的值，此时对应的页面就是@RequestMapping的值test。
+如果类上有@RequestMapping，则视图路径还要加上类的@RequestMapping的值，本例中视图路径为modelattribute/test.jsp。
