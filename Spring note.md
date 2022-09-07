@@ -523,4 +523,487 @@ public class ModelAttributeController {
 这种情况下，返回值String（或者其他对象）就不再是视图了，而是放入到Model中的值，此时对应的页面就是@RequestMapping的值test。
 如果类上有@RequestMapping，则视图路径还要加上类的@RequestMapping的值，本例中视图路径为modelattribute/test.jsp。
 
-## @
+## spring data jpa 注解 ##
+### **@Entity** ###
+```java
+public @interface Entity {
+    String name() default "";
+}
+```
+- 被Entity标注的实体类将会被JPA管理控制，在程序运行时，JPA会识别并映射到指定的数据库表
+- 唯一参数name：指定实体类名称，默认为当前实体类的非限定名称。
+- 若给了name属性值即@Entity(name="XXX")，则jpa在仓储层（数据层）进行自定义查询时，所查的表名应是XXX。
+- 如：select s from XXX s
+  
+### **@Table** ###
+- 当你想生成的数据库表名与实体类名称不同时，使用@Table（name=“数据库表名”），与@Entity标注并列使用，至于实体类声明语句之前
+```java
+@Entity
+@Table(name="t_student")
+public class student{
+    ...
+}
+```
+```java
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+@Target({ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Table {
+    //表的名字，可选如果不填写，系统认为和实体的名字一样为表名
+    String name() default "";
+    //此表的catalog，可选
+    String catalog() default "";
+    //此表的schema，可选
+    String schema() default "";
+    //唯一性约束，只有创建表的时候有用，默认不需要
+    UniqueConstraint[] uniqueConstraints() default {};
+    //索引，只有创建表的时候使用，默认不需要
+    Index[] indexes() default {};
+}
+```
+@Table中的参数（不常用）
+- catalog：用于设置表所映射到的数据库的目录
+- schema：用于设置表所映射到的数据库的模式
+- uniqueConstraints：设置约束条件
+
+### **@Id** ###
+@Id用于实体类的一个属性或者属性对应的getter方法的标注，被标注的属性将映射为数据库主键
+
+### **@GeneratedValue** ###
+与@Id一同使用，用于标注主键的生成策略，通过strategy属性指定。默认是JPA自动选择合适的策略
+```java
+@Target({ElementType.METHOD, ElementType.FIELD})
+@Retention(RetentionPolicy.RUNTIME)
+public @interface GeneratedValue {
+    
+    GeneratetoinType strategy() default GenerationType.AUTO;
+
+    String generator() default "";
+}
+```
+
+在javax.persistence.GenerationType中定义了以下几种可供选择的策略：
+- IDENTITY:采用数据库ID自增长的方式产生主键，Oracle不支持这种方式。
+- AUTO：JPA自动选择合适的策略，是默认选项。
+- SEQUENCE：通过序列产生主键，通过@SequenceGenerator标注指定序列号，MySQL不支持这种方式。
+- TABLE:通过表产生主键，框架借由表模拟序列产生主键，使用该策略更易于做数据库移植。
+
+### **@Basic** ###
+@Basic表示一个简单的属性到数据库表的字段的映射，对于没有任何标注的getXxxx()方法，默认即为@Basic（fetch=FetechType.EAGER)
+```java
+@Target({ElementType.METHOD,ElementType.FIELD})
+@Retention(RerentionPolicy.RUNTIME)
+public @interface Basic {
+    //可选，EAGER为立即加载，LAZY为延迟加载
+    FetchType fetch() default FetchType.EAGER;
+        //可选，设置这个字段是否为null，默认为true
+    boolean optional() default true;
+}
+```
+@Basic参数：
+   - fetch表示该属性的加载读取策略
+      - EAGER主动抓取（默认为EAGER）
+      - LAZY延迟加载，只有用到该属性时才会去加载
+   - optional（默认为true）
+      表示该属性是否允许为null
+
+### **@Transient** ###
+@Transient表示该属性并非一个到数据库表字段的映射，表示持久化属性，与@Basic作用相反。JPA映射数据库的时候就会忽略他。
+
+### **@Column** ###
+源码
+```java
+@Target({ElementType.METHOD,ElementType.FIELD})
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Column {
+        //数据库中表的列明。可选，默认为与实体属性名保持一样，如果实体属性名中由大写，他会自动分割
+    String name() default "";
+        //是否唯一，默认false,可选
+    boolean unique() default false;
+        //数据字段是否允许为空，可选，默认为true
+    boolean nullable() default true;
+        //执行insert操作的时候是否包含此字段，可选，默认为true
+    boolean insertable() default true;
+    //执行update的时候是否包含此字段，可选，默认为true
+    boolean updatable() default true;
+        //表示该字段在数据库中的实际类型
+    String columnDefinition() default "";
+        //数据库字段的长度，可选，默认为255
+    int length() default 255;
+}
+```
+@Column注解来标识实体类中属性与数据表中字段的对应关系
+从定义可以看出，@Column注解一共有10个属性，这10个属性均为可选属性，各属性含义分别如下：
+**name**
+name属性定义了被标注字段在数据库中所对应字段的名称：
+**unique**
+unique属性表示该字段是否为唯一标识，默认为false。如果表中有一个字段需要唯一标识，则既可以使用该标记，也可以使用@Table标记中的@UniqueConstraint
+**nullable**
+nullable属性表示该字段是否可以为null值，默认为true。
+**insertable**
+insertable属性表示在使用“INSERT”脚本插入数据时，是否需要插入该字段的值。
+**updatable**
+updatable属性表示在使用“UPDATE”脚本插入数据时，是否需要更新该字段的值。insertable和updatable属性一般多用于只读的属性，例如主键和外键等。这些字段的值通常是自动生成的。
+**columnDefinition**
+columnDefinition属性表示创建表时，该字段创建的SQL语句，一般用于通过Entity生成表定义时使用。（也就是说，如果DB中表已经建好，该属性没有必要使用。）
+**table**
+table属性定义了包含当前字段的表名
+**length**
+length属性表示字段的长度，当字段的类型varchar时，该属性才有效，默认为255个字符。
+**precision和scale**
+precision属性和scale属性表时精度，当字段类型为double时，precision表示数值的总长度，scale表示小数点所占的位数。
+在使用此@Column标记时，需要注意以下几个问题：
+此标记可以标注在getter方法或属性前，例如以下的两种标注方法都是正确的：
+标注在属性前：
+```java
+@Entity
+@Table(name = "contact")
+public class ContactEO{
+
+    @Column(name = "contact")
+    private String name;
+
+    public String getName(){
+        return name;
+    }
+
+    public void setName(String name){
+        this.name=name;
+    }
+}
+```
+标注在getter方法前：
+```java
+@Entity
+@Table(name = "contact")
+public class ConactEO{
+    private String name;
+
+    @Column(name = "contact_name")
+    public String getName(){
+        return name;
+    };
+
+    public void setName(String name){
+        this.name=name;
+    }
+}
+```
+
+### **@Temporal** ###
+@Temporal用来设置Date类型的属性映射到对应精准的字段。
+
+- @Temporal(TemporalType.DATA)映射为日期--data
+- @Temporal(TemporalType.TIME)映射为日期--time
+- @Temporal(TemporalType.TIMESTAMP)映射为日期--data time
+
+### **@Enumerated** ###
+@Enumerated很好用，直接映射enum枚举类型的字段
+源码
+```java
+public @interface Enumerated {
+    //枚举映射的类型，默认为ORDINAL
+    EnumType value() default EnumType.ORDINAL;
+}
+```
+EnumType可选：
+- ORDINAL：映射枚举的下标
+- SIRING：映射枚举的name
+  
+示例：
+```java
+//定义一个枚举类
+public enum Gender{
+    MAIL("男性"),FMAIL("女性")
+
+    private String value;
+
+    private Gender(String value){
+        this.value = value
+    }
+}
+//实体类中的使用
+@Entity
+@Table(name = "tb_user")
+public class User implements Serializable{
+    @Enumerated(EnumType.STRING)
+    @Column(name = "user_gender")
+    private Gender gender;
+
+}
+```
+这是插入两条数据，数据库里面的值是MAIL/FMAIL，而不是男性、女性，如果是我们用@Enumerated(EnumType.ORDINAL),那么这时数据库里存储的是0，1.但是实际工作中不建议这样做，因为下标使会发生变化。
+
+### **@Lob** ###
+
+Lob将属性映射为数据库支持的大对象类型，支持以下两种数据库类型的字段
+- Clob类型是长字符串类型，java.sql.Clob、Character[]、char[]、String将被映射为Clobl类型
+- Blob类型是字节类型，java.sql.Blob、Byte[]、byte[]和实现了Serializable接口的类型将被映射为Blob类型
+- Clob、Blob占用内存空间较大，一般配合@Basic(fatch=FechType.LAZY)将其设置为延迟加载
+
+### **@JoinColumn** ###
+
+定义外键关联的字段名称
+```java
+public @interface JoinColumn {
+        //目标表的字段名，必填
+    String name() default "";
+        //本实体的字段名，非必填，默认为本表ID
+    String referencedColumnName() default "";
+        //外键字段是否唯一，默认为false
+    boolean unique() default false;
+        //外键字段是否允许为空，默认为允许
+    boolean nullable() default true;
+        //是否跟随一起新增
+    boolean insertable() default true;
+        //是否跟随一起修改
+    boolean updatable() default true;
+}
+```
+用法：主要配合@OneToOne、@ManyToOne、@OneToMany一起使用，但是使用没有意义。
+
+### **@OneToOne** ###
+源码：
+```java
+@Target({ElementType.METHOD,ElementType.FIELD})
+@Retention(RetentionPolicy.RUNTIME)
+public @interface OneToOne {
+        //关系目标实体，非必填，默认为该字段的类型
+    class targetEntity() default void.class;
+        //cascade 级联操作策略
+        //PERSIST 级联新建
+        //REMOVE 级联删除
+        //REFRESH 级联刷新
+        //MERGE 级联更新
+        //ALL四项权限
+    CascadeType[] cascade() default{};
+        //数据获取方式，立即加载和延迟加载
+    FetchType fetch() default FetchType.EAGER;
+        //是否允许为空
+    boolean optional() default true;
+        //关联关系被谁维护，非必填，一般不需要特别指定
+    String mappedBy() default "";
+        //是否级联删除，和CascadeType.REMOVE的效果一样，只要配置了两种的一种就会自动级联删除
+    boolean orphanRemoval() default false;
+}
+```
+用法：@OneToOne需要配合@JoinColumn一起使用。注意：可以双向关联，也可以只配置一方，需要视需求而定。
+示例：假设一个部门只有一个员工
+```java
+@OneToOne
+@JoinColumn(name = "employee_id",referencedColumnName = "id")
+private Employee employeeAttribute = new Employee();
+```
+employee_id指的是Department里面的字段，而referencedColumnName=“id”指的是Employee表里面的字段
+如果需要双相关联，Employee的内容如下
+```java
+@OneToOne(mappedBy = "employeeAttribute")
+private Department department;
+```
+当然不使用mappedBy，和下面效果一样
+```java
+@OneToOne
+@JoinColumn(name = "id",referencedColumnName = "employee_id")
+private Employee employeeAttribute = new Employee();
+```
+### **@OneToMany与@ManyToOne** ###
+@OneToMany与@ManyToOne可以相对存在，也可以只存在一方
+```java
+@Entity
+@Table(name = "user")
+public class User {
+    @Id
+    private Long id;
+
+    @OneToMany(
+            cascade = CascadeType.ALL,
+            fetch = FetchType.LAZY,
+            mappedBy = "user"
+    )
+    private Set<Role> setRole;
+
+}
+
+@Entity
+@Table(name = "role")
+public class Role {
+    @Id
+    private Long id;
+
+    @ManyToOne(
+            cascade =  CascadeType.ALL,
+            fetch = FetchType.EAGER
+    )
+    @JoinColumn(name = "user_id")
+    private User user;
+}
+```
+
+### **@OrderBy** ###
+```java
+public @interface OrderBy {
+    //要排序的字段，格式如下
+    //orderby_list::=orderby_item[,orderby_item]*
+    //orderby_item::=[property_or_field_name][ASC][DESC]
+    String value() default "";
+}
+```
+用法
+```java
+@Entity
+@Table(name = "user")
+public class User {
+    @Id
+    private Long id;
+
+    @OneToMany(
+            cascede = CascadeType.ALL,
+            fetch = FetchType.LAZY,
+            mappedBy = "user"
+    )
+    @OrderBy("roleName DESC")
+    private Set<Role> setRole;
+}
+```
+OrderBy中的字段对应的是实体中的名称
+
+### **@JoinTable** ###
+如果对象与对象之间有一个关联表的时候，就会用到@JoinTable,一般和@ManyToMany一起使用。
+源码：
+```java
+public @interface JoinTable {
+
+    String name() default "";
+
+    String catalog() default "";
+
+    String schema() default "";
+
+    JoinColumn[] joinColumns9 default {};
+
+    JoinColumn[] inverseJoinColumns() default {};
+}
+```
+示例：
+假设Blog和Tag是多对多的关系，有一个关联关系表blog_tag_relation，表中有两个属性blog_id和tag_id，那么Blog尸体里面的写法如下：
+```java
+@Entity
+public class Blog {
+    @Id
+    private Long id;
+    @ManyToMany
+    @JoinTable(
+            name = "blog_tag_relation",
+            joinColumns = @JoinColumn(name = "blog_id",referencedColumnName = "id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id",referencedColumnName = "id")
+    )
+    private List<Tag> tags = new ArrayList<>();
+}
+```
+
+### **@ManyToMany** ###
+
+源码：
+```java
+public @interface ManyToMang {
+    class targetEntity() default void.class;
+
+    CascadeType[] cascade() dafault {};
+
+    FetchType fetch() default FetchType.LAZY;
+
+    String mappedBy() default "";
+}
+```
+@ManyToMany表示多对多，和@OneToOne、@ManyToOne一样也有单向、双向之分。单向双向和注解没有关系，只看实体类之间是否相互引用。
+示例：一个博客可以有多个标签，一个标签也可以在多个博客上，Blog和Tag就是多对多的关系
+```java
+//单向多对多
+@Entity
+public class Blog {
+    @Id
+    private Long id;
+    @ManyToMany
+    @JoinTable(
+            name = "blog_tag_relation",
+            joinColumns = @JoinColumn(name = "blog_id", referencedColumnName = "id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id", referencedColumnName = "id")
+    )
+    private List<Tag> tags = new ArrayList<>();
+}
+
+@Entity
+public class BlogTagRelation {
+    @Column(name = "blog_id")
+    private Integer blogId;
+
+    @Column(name = "tag_id")
+    private Integer tag_id
+}
+
+//双向多对多
+@Entity
+public class Blog {
+    @Id
+    private Long id;
+    @ManyToMany(cascade=CascadeType.ALL)
+    @JoinTable(
+            name = "blog_tag_relation",
+            joinColumns = @JoinColumn(name = "blog_id", referencedColumnName = "id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id", referencedColumnName = "id")
+    )
+    private List<Tag> tags = new ArrayList<>();
+}
+@Entity
+public class Tag {
+    @Id
+    private String id;
+
+    @ManyToMany(mappedBy = "BlogTagRelation")
+    private List<Blog> blog = new ArrayList<>();
+}
+```
+
+### **@EntityGraph** ###
+JPA2.1推出@EntityGraph、@NamedEntityGraph用来提高查询效率，很好地解决了N+1条SQL的问题。两者配合起来使用，缺一不可。
+1.现在Entity里面定义了@NameEntityGraph，其他不变，其中，@NamedAttributeNode可以有多个，也可以有一个
+```java
+@NamedEntityGraph(
+        name = "UserInfoEntity.addressEntityList",
+        attributeNodes = {
+            @NamedAttributeNode("addressEntityList"),
+            @NamedAttributeNode("userBlogEntityList")
+        }
+)
+@Entity(name = "UserInfoEntity")
+@Table(name = "User_info", schema = “test”)
+public class UserInfoEntity implements Serializable {
+    @Id
+    @Column(name = "id", nullable = true)
+    private Integer id;
+
+    @OneToOne(optional = true)
+    @JoinColumn(
+            referencedColumnName = “id",
+            name = "address_id",
+            nullable = false
+    )
+    private UserReceivingAddressEntity addressEntityList;
+
+    @OneToMany
+    @JoinColumn(name = "create_user_id", referencedColumnName = "id")
+    private List<UserBlogEntity> userBlogEntityList;
+}
+```
+2.只需要在查询方法上加@EntityGraph注解即可，其中value就是@NamedEntityGraph中的name。
+```java
+public interface UserRepository extends JpaRepository<User,Long> {
+    @Override
+    @EntityGraph(value = "UserInfoEntity.addressEntityList")
+    List<User> findAll();
+}
+```
