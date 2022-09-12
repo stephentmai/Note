@@ -1007,3 +1007,232 @@ public interface UserRepository extends JpaRepository<User,Long> {
     List<User> findAll();
 }
 ```
+### **@PrePersist注解** ###
+在使用JPA对数据库进行操作的时候，我们时常会出现数据库字段设置末不能为空，而我们保存的字段为null导致程序报错，这个时候我们就可以使用@Prepersist@PostPersist注解回调方法来解决问题
+回调方法是附加到实体生命周期事件的用户定义方法，并且在发生这些事件时由JPA自动调用。
+我们可以发现有很多类似的注解可以使用：
+- @Prepersist 在新实体持久化之前（添加到EntityManager）
+- @PostPersist 在数据库中存储新实体（在commit或期间flush）
+- @PostLoad 从数据库中检索实体后。
+- @PreUpdate 当一个实体被识别为被修改时EntityManager
+- @PostUpdate 更新数据中的实体（在commit或期间flush）
+- @PreRemove 在EntityManager中标记要删除的实体时
+- @PostRemove 从数据库中删除实体（在commit或期间flush）
+```java
+@PostPersist
+public void setTel() {
+    //当我们要报错电话号码时，如果该实体的电话为null，则设置默认值。这样我们程序就不会报错
+    if(null == this.Tel){
+        this.Tel = "";
+    }
+}
+```
+```java
+@PrePersist
+public void setDefaultUpdateTime() {
+    //在业务中无关的数据给一个默认值保存在数据库中。
+    this.updateTime = new Date();
+}
+```
+```java
+@Data
+@ToString
+@MappedSuperclass
+@EqualsAndHashCode
+public class BaseEntity {
+
+    /**
+     * Create time.
+     */
+    @Column(name = "create_time")
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date createTime;
+
+    /**
+     * Update time.
+     */
+    @Column(name = "update_time")
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date updateTime;
+
+    @PrePersist
+    protected void prePersist() {
+        Date now = DateUtils.now();
+        if (createTime == null) {
+            createTime = now;
+        }
+
+        if (updateTime == null) {
+            updateTime = now;
+        }
+    }
+
+    @PreUpdate
+    protected void preUpdate() {
+        updateTime = new Date();
+    }
+
+    @PreRemove
+    protected void preRemove() {
+        updateTime = new Date();
+    }
+
+}
+```
+### **@Query** ###
+
+- 只需要将@Query标记在继承了Repository的自定义接口的方法上，就不再需要遵循查询方法命名规则。
+- 支持命名参数及索引参数的使用
+- 本地查询
+
+**案例**
+- 查询Id最大的员工信息
+```java
+@Query("select o from Employee o where id=(select max(id) from Employee t1)")
+    Employee getEmployeeById();
+```
+注意：Query语句中第一个Employee是类名
+
+测试类：
+```java
+@Test
+    public void getEmployyeeByMaxId() throws Exception {
+        Employee employee = employeeRepository.getEmployeeByMaxId();
+        System.out.println("id:" + employee.getId() + " name: " + employee.getName() + "age:" + employee.getAge());
+    }
+```
+
+- 根据占位符进行查询
+注意：占位符从1开始
+```java
+@Query("select o from Employee o where o.name=?1 and o.age=?2")
+    List<Employee> queryParams1(String name, Integer age);
+```
+测试方法：
+```java
+@Test
+    public void queryParams1() throws Exception {
+        List<Employee> employees = employeeRepository.queryParams1("zhangsan", 20);
+        for (Employee employee : employees) {
+            System.out.println("id:" +employee.getId() + " name: " + employee.getName() + " age:" + employee.getAge());
+        }
+    }
+```
+
+- 根据命名参数的方式
+```java
+@Query("select o from Employee o where o.name=:name and o.age=:age")
+    List<Employee> queryParams2(@Param("name") String name, @Param("age") Integer age);
+```
+- like查询语句
+```java
+@Query("select o from Employee o where o.name like %?1%")
+    List<Employee> queryLike1(String name);
+@Test
+    public void queryLike1() throw Exception {
+        List<Employee> employees = employeeRepository.queryLike1("test");
+        for (Employee employee : employees) {
+            System.out.println("id:" + employee.getId() + " name:" +employee.getName() + "age:" + employee.getAge());
+        }
+    }
+```
+
+- like语句使用命名参数
+```java
+@Query("select o from Employee o where o.name like %:name%")
+    List<Employee> queryLike2(@Param("name") String name);
+```
+**本地查询**
+所谓本地查询，就是使用原生的SQL语句进行查询数据库的操作。但是在Query中原生态查询默认是关闭的，需要手动设置为true：
+```java
+@Query(nativeQuery = true, value = "select count(1) from employee")
+    long getCount();
+```
+更新操作整合事物使用
+- 在DAO中定义方法根据Id来更新年龄（Modifying注解代表允许修改）
+```java
+@Modifying
+    @Query("update Employee o set o.age = :age where o.id =:id")
+    void update(@Param("id") Integer id, @Param("age") Integer age);
+```
+要注意，执行更新或者删除操作是需要事务支持，所以通过service层来增加事物功能，在update方法上添加Transactional注解。
+```java
+package com.xx.service;
+
+import com.xx.repository.EmployeeRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.sterotype.Service;
+
+@Service
+public class EmployeeService {
+    
+    @Autowired
+    private EmployeeRepository employeeRepository;
+
+    @Transactional
+    public void update(Integer id, Integer age) {
+        employeeRepository.update(id,age);
+    }
+}
+```
+
+- 删除操作
+删除操作同样需要Query注解，Modifying注解和Transactional注解
+```java
+@Modifying
+    @Query("delete from Employee o where o.id = :id")
+    void delete(@Param("id") Ingeter id);
+
+    @Transactional
+    public void delete(Integer id) {
+        employeeRepository.delete(id);
+    }
+```
+
+### **@Transactional注解** ###
+
+@Transactional注解可以作用于接口、接口方法、类以及类方法上
+1.当作用于类上上时，该类的所有public方法将都具有该类型的事务属性
+2.当作用在方法级别时会覆盖类级别的定义
+3.当作用在接口和接口方法时则只有在使用基于接口的代理时它才会生效，也就是JDK动态代理，而不是Cglib代理
+4.当在protected、private或者默认可见性的方法上使用@Transactional注解时是不会生效的，也不会抛出任何异常
+5.默认情况下，只有在来自外部的方法调用才会被AOP代理捕获，也就是，类内部方法调用本类内部的其他方法并不会引起事务行为，即使被调用方法使用@Transactional注解进行修饰
+
+**@Transactional注解的可用参数**
+**readonly**
+该属性用于设置当前事务是否为只读事务，设置为true表示只读，false则表示可读写，默认值为false
+**rollbackFor**
+该属性用于设置需要进行回滚的异常类名称数组，当方法中抛出指定异常数组中的异常时，则进行事务回滚。例如：
+1.指定单一异常类：@Transactional(rollbackFor=RuntimeException.class)
+2.指定多个异常类：@Transactional(rollbackFor={RuntimeException.class,BusnessException.class})
+**rollbackForClassName**
+该属性用于设置需要进行回滚的异常类名称数组，当方法中抛出指定异常名称数组中的异常时，则进行事务回滚。例如：
+1.指定单一异常类名称：@Transactional(rollbackForClassName="RuntimeException")
+2.指定多个异常类名称：@Transactional(rollbackForClassName={"RuntimeException","BusnessException"})
+**noRollbackFor**
+该属性用于设置不需要进行回滚的异常类数组，当方法中抛出指定异常数组中的异常时，不进行事务回滚
+**noRollbackForClassName**
+参照上方例子
+**timeout**
+该属性用于设置事物的超时秒数，默认值为-1表示永不超时
+**propagation**
+该属性用于设置事物的传播行为
+例如：@Transactional(propagation=Propagation.NOT_SUPPORTED)
+事物传播行为介绍：
+1.@Transactional(propagation=Propagation.REQUIRED)如果有事务，没有的话新建一个(默认)
+2.@Transactional(propagation=Propagation.NOT_SUPPORTED)容器不为这个方法开启事务
+3.@Transactional(propagation=Propagation.REQUIRES_NEW)不管是否存在事务，都创建一个新的事务，原来的挂起，新的执行完毕，继续执行老的事务
+4.@Transactional(propagation=Propagation.MANDATORY)必须在一个已有的事物中执行，否则抛出异常
+5.@Transactional(propagation=Propagation.NEVER)必须在一个没有的事务中执行，否则抛出异常（与propagation.MANDATORY相反
+6.@Transactional(propagation=Propagation.SUPPORTS)如果其他bean调用这个方法，在其他bean中声明事务，那就用事务，如果其他bean没有声明事务，那就不用事务
+**isolation**
+该属性用于设置底层数据库的事务隔离级别
+事务隔离级别介绍
+1.@Transactional(isolation = Isolation.READ_UNCOMMITTED)读取未提交数据（会出现脏读，不可重复读）基本不使用
+2.@Transactional(isolation = Isolation.READ_COMMITTED)读取已提交数据（会出现不可重复读和幻读）
+3.@Transactional(isolation = Isolation.REPEATABLE_READ)可重复读（会出现幻读）
+4.@Transactional(isolation = Isolation.SERIALIZABLE)串行化
+什么是脏读、幻读、不可重复读？
+1.脏读：一个事务读取到另一个事务未提交的更新数据
+2.不可重复读：在同一事务中，多次读取同一数据返回的结果有所不同，换句话说，后续读取可以读到另一事务已提交的更新数据。相反，“可重复读”在同一事务中多次读取数据时，能够保证所读数据一样，也就是后续读取不能读到另一个事务已提交的更新数据
+3.幻读：一个事务读到另一个事务已提交的insert数据
