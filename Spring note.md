@@ -1234,7 +1234,6 @@ public class EmployeeService {
 6.@Transactional(propagation=Propagation.SUPPORTS)如果其他bean调用这个方法，在其他bean中声明事务，那就用事务，如果其他bean没有声明事务，那就不用事务<br>
 
 **isolation**  
-
 该属性用于设置底层数据库的事务隔离级别
 事务隔离级别介绍
 1.@Transactional(isolation = Isolation.READ_UNCOMMITTED)读取未提交数据（会出现脏读，不可重复读）基本不使用<br>
